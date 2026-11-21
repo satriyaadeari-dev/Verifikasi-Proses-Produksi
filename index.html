@@ -2,7 +2,7 @@
 <html lang="id"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Verifikasi Proses Produksi</title>
-<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0d1626"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0d1626"><meta name="robots" content="noindex,nofollow"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
 <style>
 :root{--bg:#f6f3ec;--sf:#fff;--sf2:#efeadf;--tx:#14213a;--mu:#66748b;--gold:#a9812f;--ok:#17a673;--bad:#d64545;--ln:#e3dccb;--nav:#fffd;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
@@ -115,11 +115,11 @@ async function save(){const c=cfg(),m=[];
   if(c.per&&!F.periode)m.push('periode');
   if(c.rok){if(F.sampel==='')m.push('sampel');if(F.reject==='')m.push('reject');else if(+F.reject>+F.sampel)m.push('reject tidak boleh melebihi sampel')}
   if(!c.pts.length)m.push('point verifikasi');
-  else if(c.groups){const g=c.groups.find(g=>g.pts.some(p=>F.poin[p]));if(!g)m.push('isi Proses GM atau Proses PC');else if(g.pts.some(p=>!F.poin[p]))m.push('lengkapi semua point '+g.n)}
+  else if(c.groups){}
   else if(c.pts.some(p=>!F.poin[p]))m.push('point verifikasi');
   if(m.length)return toast('Lengkapi: '+m.join(', '));
   const old=rows.find(r=>r.id===editId),id=editId||('v'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
-  const rec={...F,poin:Object.fromEntries(c.pts.filter(p=>F.poin[p]).map(p=>[p,F.poin[p]])),proses:c.groups?((c.groups.find(g=>g.pts.some(p=>F.poin[p]))||{n:''}).n.replace('Proses ','')):'',jam:hms(new Date()),ts:old?.ts||Date.now(),upd:Date.now()};
+  const rec={...F,poin:Object.fromEntries(c.pts.filter(p=>F.poin[p]).map(p=>[p,F.poin[p]])),proses:c.groups?c.groups.filter(g=>g.pts.some(p=>F.poin[p])).map(g=>g.n.replace('Proses ','')).join('+'):'',jam:hms(new Date()),ts:old?.ts||Date.now(),upd:Date.now()};
   try{if(col)col.doc(id).set(rec).catch(e=>toast('Gagal sinkron: '+(e.message||e.code)));
     rows=rows.filter(r=>r.id!==id).concat([{id,...rec}]);cache();editId=null;F=blank();tab='input';window.scrollTo(0,0);render();toast('Success ✓',1200);
   }catch(e){toast('Gagal menyimpan: '+(e.message||e.code))}
@@ -148,7 +148,7 @@ function clr(i){cfg().groups[i].pts.forEach(p=>delete F.poin[p]);render(true)}
 function ptRow(p,dis){return `<div class="pt${dis?' dis':''}"><span>${esc(p)}</span><div class="yn"><button ${dis?'disabled':''} class="y ${F.poin[p]==='Ya'?'on':''}" onclick="P('${p}','Ya')">√</button><button ${dis?'disabled':''} class="n ${F.poin[p]==='Tidak'?'on':''}" onclick="P('${p}','Tidak')">X</button></div></div>`}
 function ptsHtml(c){if(!c.groups)return `<div class="card"><div class="lb">Point Verifikasi (√ = sesuai · X = temuan)</div>${c.pts.map(p=>ptRow(p,0)).join('')}</div>`;
   const u=c.groups.map(g=>g.pts.some(p=>F.poin[p]));
-  return `<div class="sub" style="margin:0 4px 8px">√ = sesuai · X = temuan. Isi salah satu proses saja: jika Proses GM terisi maka Proses PC terkunci, dan sebaliknya.</div>`+c.groups.map((g,i)=>{const dis=u[1-i];return `<div class="card${dis?' lock':''}"><div class="gh"><div class="lb" style="margin:0">${g.n}</div>${u[i]?`<button class="mini-b" onclick="clr(${i})">Kosongkan</button>`:dis?'<span class="sub">Terkunci</span>':''}</div>${g.pts.map(p=>ptRow(p,dis)).join('')}</div>`}).join('')}
+  return `<div class="sub" style="margin:0 4px 8px">√ = sesuai · X = temuan. Proses GM dan Proses PC boleh diisi atau dikosongkan.</div>`+c.groups.map((g,i)=>{const dis=0;return `<div class="card${dis?' lock':''}"><div class="gh"><div class="lb" style="margin:0">${g.n}</div>${u[i]?`<button class="mini-b" onclick="clr(${i})">Kosongkan</button>`:''}</div>${g.pts.map(p=>ptRow(p,dis)).join('')}</div>`}).join('')}
 function num(k,v){const e=event.target,L=k==='idn'?idMax(F.lokasi):7;F[k]=v.replace(/\D/g,'').slice(0,L);if(e.value!==F[k])e.value=F[k]}
 function render(keep){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
   const y=window.scrollY;document.getElementById('app').innerHTML=({input:vInput,dash:vDash,data:vData})[tab]();if(keep)window.scrollTo(0,y)}
