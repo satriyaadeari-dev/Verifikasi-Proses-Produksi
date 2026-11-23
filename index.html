@@ -75,6 +75,11 @@ textarea{width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--
 .tps{display:flex;flex-direction:column;gap:2px;margin-top:4px;font-size:10.5px;color:var(--mu)}.tps u{text-decoration:none;font-weight:800;color:var(--gold);display:inline-block;min-width:42px}.tps em{font-style:normal;color:var(--tx);font-weight:700}
 .rt{text-align:right}.rt small{display:block;color:var(--mu);font-size:10.5px;margin-top:3px}
 .it.c{padding:6px 9px;margin-bottom:5px;border-radius:11px;gap:8px;flex-wrap:nowrap;align-items:center}.it.c>div:first-child{flex:1;min-width:0}.it.c h4{font-size:12px;margin:0 0 2px}.it.c p{font-size:10.5px;line-height:1.45}.it.c .ed{color:var(--gold);font-weight:700}.it.c .acts{gap:5px}.it.c .acts button{padding:4px 8px;font-size:10px;border-radius:8px}
+:root{--dred:#b3201f}@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--dred:#ef5350}}:root[data-theme="dark"]{--dred:#ef5350}
+.dred{color:var(--dred)}
+.sel select{padding:9px 6px;font-size:12px;border-radius:11px;min-width:0}
+.srow{display:flex;gap:8px;margin-top:8px}.srow input{flex:1;padding:9px 12px;font-size:13px;border-radius:12px;min-width:0}
+.lockt{font-size:9.5px;color:var(--mu);text-align:right;line-height:1.35;flex:none}
 .scroll{overflow-x:auto}.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom,0px));background:#14213a;color:#fff;padding:12px 18px;border-radius:14px;font-weight:600;z-index:9;max-width:90%;font-size:13px;box-shadow:0 10px 30px #0006}
 </style></head><body>
 <header><div><h1>Verifikasi <span>Proses Produksi</span></h1><div class="sub">Pencatatan &amp; analitik temuan</div></div><div class="hr"><div class="dt" id="dt"></div><div class="clk" id="clk">--:--:--</div><div class="st off" id="st"><b>●</b> menghubungkan</div></div></header>
@@ -88,6 +93,8 @@ const OPT={lokasi:['MGT','BTR','AREA 2','AREA 4'],waktu:['Pra Proses','In Proses
 const AUTO={'MGT':['12 AS',4],'BTR':['12 DJAJA',2],'AREA 2':['12 AS',8],'AREA 4':['12 AS',4]};
 const PIN=['Implementasi 10btg/15 menit','Cek setting gilingan','Cek Wiwiran/Glue Tank','Penempatan Ambri','Kebersihan Tools','Pemerataan Tbk (UH s/d UB)','Cek Area Talipan','Cek Area UH UB'];
 const isNbk=l=>l==='AREA 2'||l==='AREA 4',idMax=l=>isNbk(l)?2:4,idShort=l=>isNbk(l)?'NBK':'ID';
+const devId=(()=>{try{let d=localStorage.getItem('vp_devid');if(!d){d='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);localStorage.setItem('vp_devid',d)}return d}catch(e){return 'd-lokal'}})();
+const canEdit=r=>!r.owner||r.owner===devId,DENY='Data ini hanya bisa diedit atau dihapus oleh perangkat yang menginputnya';
 const TMB=['Verifikasi Timbangan','Verifikasi APD'];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pad=x=>String(x).padStart(2,'0'),hms=d=>[d.getHours(),d.getMinutes(),d.getSeconds()].map(pad).join(':');
@@ -95,7 +102,7 @@ const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOStr
 const BL=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const fd=d=>{if(!d)return'-';const[a,b,c]=d.split('-');return +c+' '+BL[+b-1]+' '+a};
 const blank=()=>({lokasi:'',tanggal:today(),waktu:'',verifikator:'',brand:'',periode:'',blok:'',idn:'',sampel:'',reject:'',note:'',poin:{}});
-let rows=[],tab='input',F=blank(),editId=null,delId=null,grp='lokasi',rgrp='lokasi',nflt='',flt={from:'',to:'',lokasi:'',q:''},col=null;
+let rows=[],tab='input',F=blank(),editId=null,delId=null,grp='lokasi',rgrp='lokasi',df={from:'',to:'',lokasi:'',ver:'',batch:'',q:''},nflt='',flt={from:'',to:'',lokasi:'',q:''},col=null;
 try{rows=JSON.parse(localStorage.getItem('vp_cache')||'[]')}catch(e){}
 const cache=()=>{try{localStorage.setItem('vp_cache',JSON.stringify(rows))}catch(e){}};
 function toast(m,ms){const t=document.getElementById('toast');t.innerHTML='<div class="toast">'+esc(m)+'</div>';clearTimeout(toast.i);toast.i=setTimeout(()=>t.innerHTML='',ms||2800)}
@@ -132,14 +139,15 @@ async function save(){const c=cfg(),m=[];
   else if(c.groups){const g=c.groups[0],n=g.pts.filter(p=>F.poin[p]).length;if(n>0&&n<g.pts.length)m.push('semua point Proses GM wajib diisi ('+n+'/'+g.pts.length+')')}
   else if(c.pts.some(p=>!F.poin[p]))m.push('point verifikasi');
   if(m.length)return toast('Lengkapi: '+m.join(', '));
-  const old=rows.find(r=>r.id===editId),id=editId||('v'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
-  const rec={...F,poin:Object.fromEntries(c.pts.filter(p=>F.poin[p]).map(p=>[p,F.poin[p]])),proses:c.groups?c.groups.filter(g=>g.pts.some(p=>F.poin[p])).map(g=>g.n.replace('Proses ','')).join('+'):'',tanggal:old?old.tanggal:today(),jam:old&&old.jam?old.jam:hms(new Date()),...(old?{jamEdit:hms(new Date()),tglEdit:today()}:{}),ts:old?.ts||Date.now(),upd:Date.now()};
+  const old=rows.find(r=>r.id===editId);if(old&&!canEdit(old)){editId=null;return toast(DENY,3500)}
+  const id=editId||('v'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+  const rec={...F,poin:Object.fromEntries(c.pts.filter(p=>F.poin[p]).map(p=>[p,F.poin[p]])),proses:c.groups?c.groups.filter(g=>g.pts.some(p=>F.poin[p])).map(g=>g.n.replace('Proses ','')).join('+'):'',tanggal:old?old.tanggal:today(),jam:old&&old.jam?old.jam:hms(new Date()),...(old?{jamEdit:hms(new Date()),tglEdit:today()}:{}),ts:old?.ts||Date.now(),upd:Date.now(),owner:old&&old.owner?old.owner:devId};
   try{if(col)col.doc(id).set(rec).catch(e=>toast('Gagal sinkron: '+(e.message||e.code)));
     rows=rows.filter(r=>r.id!==id).concat([{id,...rec}]);cache();editId=null;F=blank();tab='input';window.scrollTo(0,0);render();toast('Success ✓',1200);
   }catch(e){toast('Gagal menyimpan: '+(e.message||e.code))}
 }
-async function del(id){try{if(col)col.doc(id).delete().catch(e=>toast('Gagal hapus'));rows=rows.filter(r=>r.id!==id);cache();delId=null;toast('Data dihapus');render()}catch(e){toast('Gagal menghapus')}}
-function edit(id){const r=rows.find(x=>x.id===id);F={...blank(),...JSON.parse(JSON.stringify(r))};editId=id;go('input')}
+async function del(id){const r0=rows.find(x=>x.id===id);if(r0&&!canEdit(r0)){delId=null;render(true);return toast(DENY,3500)}try{if(col)col.doc(id).delete().catch(e=>toast('Gagal hapus'));rows=rows.filter(r=>r.id!==id);cache();delId=null;toast('Data dihapus');render()}catch(e){toast('Gagal menghapus')}}
+function edit(id){const r=rows.find(x=>x.id===id);if(!r)return;if(!canEdit(r))return toast(DENY,3500);F={...blank(),...JSON.parse(JSON.stringify(r))};editId=id;go('input')}
 /* ---------- statistik ---------- */
 const fr=()=>rows.filter(r=>(!flt.from||r.tanggal>=flt.from)&&(!flt.to||r.tanggal<=flt.to)&&(!flt.lokasi||r.lokasi===flt.lokasi));
 function tally(rs){let p=0,t=0,rej=0,smp=0;rs.forEach(r=>{Object.values(r.poin||{}).forEach(v=>{p++;if(v==='Tidak')t++});rej+=+r.reject||0;smp+=+r.sampel||0});return{n:rs.length,p,t,rej,smp,pct:p?t/p*100:0,pr:smp?rej/smp*100:0}}
@@ -198,20 +206,21 @@ function noteCard(rs){const L=rs.filter(r=>r.waktu==='End Proses'&&r.note&&r.not
   ${f.length?f.slice(0,30).map(r=>`<div class="nt"><div class="nh"><b>${esc(r.lokasi)} · Blok ${esc(r.blok)} · ${idShort(r.lokasi)} ${esc(r.idn)}</b><span class="pill" style="background:var(--sf);color:var(--gold)">${esc(r.verifikator)}</span></div><p>${esc(r.note)}</p><small>${fd(r.tanggal)} ${esc(r.jam||'')}</small></div>`).join(''):'<div class="sub">Belum ada catatan temuan End Proses.</div>'}${f.length>30?'<div class="sub">Menampilkan 30 catatan terbaru.</div>':''}</div>`}
 let pid=0;
 const shade=(h,f)=>{const n=parseInt(h.slice(1),16),m=f<0?0:255,t=Math.abs(f);return '#'+[n>>16,n>>8&255,n&255].map(c=>Math.round(c+(m-c)*t).toString(16).padStart(2,'0')).join('')};
-function pie3d(a){const id='pg'+(++pid),cx=100,cy=54,rx=88,ry=46,h=18,tot=a.reduce((s,x)=>s+x.v,0),X=t=>cx+rx*Math.cos(t),Y=t=>cy+ry*Math.sin(t);
+function pie3d(a){const id='pg'+(++pid),cx=100,cy=64,rx=78,ry=40,h=16,tot=a.reduce((s,x)=>s+x.v,0),X=t=>cx+rx*Math.cos(t),Y=t=>cy+ry*Math.sin(t);
   const defs=`<defs><radialGradient id="${id}" cx="38%" cy="28%" r="78%"><stop offset="0" stop-color="#fff" stop-opacity=".4"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></radialGradient><filter id="${id}b"><feGaussianBlur stdDeviation="3.5"/></filter></defs>`;
   const sh=`<ellipse cx="${cx}" cy="${cy+h+6}" rx="${rx*.92}" ry="${ry*.78}" fill="#000" opacity=".3" filter="url(#${id}b)"/>`;
-  if(!tot)return `<svg viewBox="0 0 200 122" width="100%">${defs}${sh}<ellipse cx="${cx}" cy="${cy+h}" rx="${rx}" ry="${ry}" fill="#5b6b86"/><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#8fa0ba"/><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${id})"/><text x="${cx}" y="${cy+5}" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">0%</text></svg>`;
+  if(!tot)return `<svg viewBox="0 0 200 132" width="100%">${defs}${sh}<ellipse cx="${cx}" cy="${cy+h}" rx="${rx}" ry="${ry}" fill="#5b6b86"/><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#8fa0ba"/><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${id})"/><text x="${cx}" y="${cy+5}" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">0%</text></svg>`;
   let ang=-Math.PI/2,walls='',tops='',labs='';
-  a.filter(x=>x.v>0).forEach(x=>{const f=x.v/tot,a1=ang,a2=ang+f*2*Math.PI,m=(a1+a2)/2,dk=shade(x.c,-.4),full=f>=.9999;
+  a.filter(x=>x.v>0).forEach(x=>{const f=x.v/tot,a1=ang,a2=ang+f*2*Math.PI,m=(a1+a2)/2,dk=shade(x.c,-.4),full=f>=.9999,txt=full?'100%':(f*100).toFixed(f<.1?2:1)+'%';
     if(full){walls+=`<path d="M${cx-rx} ${cy} A${rx} ${ry} 0 0 0 ${cx+rx} ${cy} L${cx+rx} ${cy+h} A${rx} ${ry} 0 0 1 ${cx-rx} ${cy+h} Z" fill="${dk}"/>`;tops+=`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${x.c}"/>`}
     else{const b1=Math.max(a1,0),b2=Math.min(a2,Math.PI);if(b2>b1)walls+=`<path d="M${X(b1)} ${Y(b1)} A${rx} ${ry} 0 0 1 ${X(b2)} ${Y(b2)} L${X(b2)} ${Y(b2)+h} A${rx} ${ry} 0 0 0 ${X(b1)} ${Y(b1)+h} Z" fill="${dk}"/>`;
       tops+=`<path d="M${cx} ${cy} L${X(a1)} ${Y(a1)} A${rx} ${ry} 0 ${f>.5?1:0} 1 ${X(a2)} ${Y(a2)} Z" fill="${x.c}" stroke="#0d1626" stroke-opacity=".4" stroke-width="1"/>`}
-    if(f>=.04)labs+=`<text x="${full?cx:cx+rx*.6*Math.cos(m)}" y="${(full?cy:cy+ry*.6*Math.sin(m))+4}" text-anchor="middle" font-size="12" font-weight="800" fill="#fff" style="paint-order:stroke;stroke:#000a;stroke-width:2.6px;stroke-linejoin:round">${full?'100':(f*100).toFixed(1)}%</text>`;
+    if(f>=.08||full)labs+=`<text x="${full?cx:cx+rx*.58*Math.cos(m)}" y="${(full?cy:cy+ry*.58*Math.sin(m))+4}" text-anchor="middle" font-size="12" font-weight="800" fill="#fff" style="paint-order:stroke;stroke:#000a;stroke-width:2.6px;stroke-linejoin:round">${txt}</text>`;
+    else if(f>=.003){const lx=Math.min(Math.max(cx+rx*1.12*Math.cos(m),24),176),ly=cy+ry*1.2*Math.sin(m)+(Math.sin(m)>0?10:0);labs+=`<text x="${lx}" y="${ly}" text-anchor="middle" font-size="11.5" font-weight="800" style="fill:${x.c==='#c0262d'?'var(--dred)':'var(--tx)'}">${txt}</text>`}
     ang=a2});
-  return `<svg viewBox="0 0 200 122" width="100%">${defs}${sh}${walls}${tops}<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${id})" pointer-events="none"/>${labs}</svg>`}
-function sbars(a,l1,l2,c1,c2){if(!a.length)return '<div class="sub">Tidak ada data</div>';
-  return `<div class="lgd"><span><i style="background:${c1}"></i>${l1}</span><span><i style="background:${c2}"></i>Sesuai</span></div>`+a.map(x=>{const p=x.b?x.a/x.b*100:0,w=x.a>0?Math.max(p,.8):0;return `<div class="bar"><div class="t"><span>${esc(x.k)}</span><em>${x.a} ${l1} / ${x.b} ${l2} · ${p.toFixed(2)}%</em></div><div class="sb"><i style="width:${w}%;background:${c1}"></i><i style="width:${100-w}%;background:${c2}"></i></div></div>`}).join('')}
+  return `<svg viewBox="0 0 200 132" width="100%">${defs}${sh}${walls}${tops}<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${id})" pointer-events="none"/>${labs}</svg>`}
+function sbars(a,l1,l2,c1,c2,nl){if(!a.length)return '<div class="sub">Tidak ada data</div>';
+  return (nl?'':`<div class="lgd"><span><i style="background:${c1}"></i>${l1}</span><span><i style="background:${c2}"></i>Sesuai</span></div>`)+a.map(x=>{const p=x.b?x.a/x.b*100:0,w=x.a>0?Math.max(p,.8):0;return `<div class="bar"><div class="t"><span>${esc(x.k)}</span><em>${x.a} ${l1} / ${x.b} ${l2} · ${p.toFixed(2)}%${x.ex?' · '+x.ex:''}</em></div><div class="sb"><i style="width:${w}%;background:${c1}"></i><i style="width:${100-w}%;background:${c2}"></i></div></div>`}).join('')}
 function heroCard(rs,T){const ok=T.p-T.t,s=sev(T.pct),pc=v=>(T.p?v/T.p*100:0).toFixed(1)+'%',cs={'Pra Proses':'#e0a030','In Proses':'#ff6b6b','End Proses':'#c77dff'},
   W=OPT.waktu.map(w=>({w,...tally(rs.filter(r=>r.waktu===w))})),sl=[{l:'Sesuai (√)',v:ok,c:'#3ecf8e'},...W.map(x=>({l:'Temuan '+x.w,v:x.t,c:cs[x.w]}))],
   last=rs.slice().sort((a,b)=>(b.tanggal+(b.jam||'')).localeCompare(a.tanggal+(a.jam||'')))[0],
@@ -223,13 +232,14 @@ function heroCard(rs,T){const ok=T.p-T.t,s=sev(T.pct),pc=v=>(T.p?v/T.p*100:0).to
   <div class="lb">Temuan per Verifikator</div><div>${tg(by(rs,GR.verifikator[1]),x=>x.k)}</div>
   <div class="lb">Temuan per Waktu</div><div>${tg(W,x=>x.w)}</div>
   ${last?`<div class="sub" style="margin-top:10px">Data terakhir: ${fd(last.tanggal)} ${esc(last.jam||'')}</div>`:''}</div>`}
-function rokokCard(rs){const T=tally(rs),pr=T.smp?T.pr:0,g=byRk(rs,GR[rgrp][1]).map(x=>({k:x.k,a:x.j,b:x.s})),vv=byRk(rs,r=>r.verifikator);
+function rokokCard(rs){const T=tally(rs),pr=T.smp?T.pr:0,ok=Math.max(T.smp-T.rej,0),g=byRk(rs,GR[rgrp][1]).map(x=>({k:x.k,a:x.j,b:x.s})),vv=byRk(rs,r=>r.verifikator),tot=vv.reduce((s,x)=>s+x.j,0),
+  vi=vv.map(x=>({k:x.k,a:x.j,b:x.s,ex:'Porsi '+(tot?(x.j/tot*100).toFixed(1):'0.0')+'% dari reject'}));
   return `<div class="card"><div class="lb">Rokok Display</div>
-  <div class="hero2"><div class="hp">${pie3d(vv.map(x=>({v:x.j,c:VC[x.k]||'#999'})))}<div class="sub" style="text-align:center;font-size:10.5px">Porsi reject per verifikator</div></div><div class="hl"><div class="big"><b style="color:var(--gold)">${pr.toFixed(2)}%</b><small>Reject</small></div><div class="big"><b style="color:var(--ok)">${T.smp?(100-pr).toFixed(2):'0.00'}%</b><small>Sesuai</small></div></div></div>
+  <div class="hero2"><div class="hp">${pie3d([{v:T.rej,c:'#c0262d'},{v:ok,c:'#3ecf8e'}])}</div><div class="hl"><div class="big"><b class="dred">${pr.toFixed(2)}%</b><small>Reject</small></div><div class="big"><b style="color:var(--ok)">${T.smp?(100-pr).toFixed(2):'0.00'}%</b><small>Sesuai</small></div></div></div>
   <div class="mini"><div><small>Jumlah Reject</small><b>${T.rej}</b></div><div><small>Jumlah Sampel</small><b>${T.smp}</b></div></div>
-  <div class="lb" style="margin-top:4px">Per verifikator</div>${vv.length?vv.map(x=>`<div class="lg"><i style="background:${VC[x.k]||'#999'}"></i><span style="flex:1;font-weight:700">${esc(x.k)}</span><span class="sub">${x.j} Reject / ${x.s} Sampel · ${x.pct.toFixed(2)}%</span></div>`).join(''):'<div class="sub">Belum ada data sampel rokok display.</div>'}
+  <div class="lb" style="margin-top:4px">Per verifikator</div>${sbars(vi,'Reject','Sampel','var(--dred)','var(--ok)')}
   <div class="lb">Rincian</div><div class="g4" style="margin-bottom:8px">${['lokasi','blok','idn','verifikator'].map(k=>`<button class="chip ${rgrp===k?'on':''}" onclick="rgrp='${k}';render(true)">${GR[k][0]}</button>`).join('')}</div>
-  ${sbars(g,'Reject','Sampel','var(--gold)','var(--ok)')}</div>`}
+  ${sbars(g,'Reject','Sampel','var(--dred)','var(--ok)',true)}</div>`}
 function matrix(rs){return `<table class="mx"><tr><th></th>${OPT.waktu.map(w=>`<th>${w}</th>`).join('')}</tr>${OPT.lokasi.map(l=>`<tr><th>${l}</th>${OPT.waktu.map(w=>{const x=tally(rs.filter(r=>r.lokasi===l&&r.waktu===w));return x.p?`<td class="${sev(x.pct)}"><b>${x.pct.toFixed(1)}%</b><small>${x.t}/${x.p}</small></td>`:'<td class="e">–</td>'}).join('')}</tr>`).join('')}</table>`}
 function prio(rs){const m={};rs.forEach(r=>{const k=`${r.lokasi} · Blok ${r.blok} · ${idShort(r.lokasi)} ${r.idn}`,o=m[k]=m[k]||{p:0,t:0,pt:{}};Object.entries(r.poin||{}).forEach(([n,v])=>{o.p++;if(v==='Tidak'){o.t++;o.pt[n]=(o.pt[n]||0)+1}})});
   const a=Object.entries(m).filter(([k,o])=>o.t>0).map(([k,o])=>({k,t:o.t,p:o.p,pct:o.t/o.p*100,tp:Object.entries(o.pt).sort((x,y)=>y[1]-x[1]).slice(0,3)})).sort((a,b)=>b.t-a.t||b.pct-a.pct).slice(0,5);
@@ -237,8 +247,11 @@ function prio(rs){const m={};rs.forEach(r=>{const k=`${r.lokasi} · Blok ${r.blo
 function dashFilter(){return `<div class="card"><div class="lb">Periode data</div><div class="g4">${[[1,'Hari ini'],[7,'7 hari'],[30,'30 hari'],[0,'Semua']].map(([n,l])=>`<button class="chip ${rOn(n)?'on':''}" onclick="setR(${n})">${l}</button>`).join('')}</div>
   <div class="row2" style="margin-top:10px"><input type="date" value="${flt.from}" onchange="flt.from=this.value;render(true)"><input type="date" value="${flt.to}" onchange="flt.to=this.value;render(true)"></div>
   <div class="lb">Lokasi</div><div class="g5">${['',...OPT.lokasi].map(l=>`<button class="chip ${flt.lokasi===l?'on':''}" onclick="flt.lokasi='${l}';render(true)">${l||'Semua'}</button>`).join('')}</div></div>`}
-function filterUI(){return `<div class="card"><div class="row2"><div><div class="lb">Dari</div><input type="date" value="${flt.from}" onchange="flt.from=this.value;render()"></div><div><div class="lb">Sampai</div><input type="date" value="${flt.to}" onchange="flt.to=this.value;render()"></div></div>
-  <div class="lb">Lokasi</div><select onchange="flt.lokasi=this.value;render()"><option value="">Semua lokasi</option>${OPT.lokasi.map(l=>`<option ${flt.lokasi===l?'selected':''}>${l}</option>`).join('')}</select></div>`}
+const dr=()=>rows.filter(r=>(!df.from||r.tanggal>=df.from)&&(!df.to||r.tanggal<=df.to)&&(!df.lokasi||r.lokasi===df.lokasi)&&(!df.ver||r.verifikator===df.ver)&&(!df.batch||r.periode===df.batch));
+function dataFilter(){const o=(arr,k,all)=>`<select onchange="df.${k}=this.value;render(true)"><option value="">${all}</option>${arr.map(v=>`<option ${df[k]===v?'selected':''}>${v}</option>`).join('')}</select>`;
+  return `<div class="card"><div class="row2"><div><div class="lb" style="margin:0 0 4px">Dari</div><input type="date" value="${df.from}" onchange="df.from=this.value;render(true)"></div><div><div class="lb" style="margin:0 0 4px">Sampai</div><input type="date" value="${df.to}" onchange="df.to=this.value;render(true)"></div></div>
+  <div class="g3 sel" style="margin-top:10px">${o(OPT.lokasi,'lokasi','Lokasi')}${o(OPT.ver,'ver','Verifikator')}${o(OPT.periode,'batch','Batch')}</div>
+  <div class="srow"><input placeholder="Cari data…" value="${esc(df.q)}" onchange="df.q=this.value;render(true)"><button class="mini-b" onclick="df={from:'',to:'',lokasi:'',ver:'',batch:'',q:''};render(true)">Reset</button></div></div>`}
 function vDash(){const rs=fr(),T=tally(rs),g=by(rs,GR[grp][1]);
   return dashFilter()+heroCard(rs,T)+`
   <div class="kpi"><div class="k"><small>Verifikasi</small><b>${T.n}</b>${verList(rs)}</div><div class="k"><small>Poin diperiksa</small><b>${T.p}</b>${waktuList(rs)}</div><div class="k"><small>Temuan (X)</small><b style="color:var(--bad)">${T.t}</b></div><div class="k"><small>Poin sesuai (√)</small><b style="color:var(--ok)">${T.p-T.t}</b></div></div>
@@ -253,9 +266,9 @@ function vDash(){const rs=fr(),T=tally(rs),g=by(rs,GR[grp][1]);
   <div class="card"><div class="lb">Insight keputusan</div>${insights(rs).map(i=>`<div class="ins">${esc(i)}</div>`).join('')}</div>
   <div class="card"><div class="lb">Bagikan &amp; Unduh</div><div class="sub" style="margin-bottom:6px">Nama perangkat (dipakai pada nama file)</div><input value="${esc(devName())}" onchange="try{localStorage.setItem('vp_dev',this.value.trim())}catch(e){}" style="margin-bottom:12px">
   <button class="btn g" style="margin-bottom:8px" onclick="csv()">Unduh CSV (.csv)</button><button class="btn wa" onclick="shareWA()">Kirim ke WhatsApp (gambar + deskripsi + CSV)</button></div>`}
-function vData(){const q=flt.q.toLowerCase(),rs=fr().filter(r=>!q||JSON.stringify(r).toLowerCase().includes(q)).sort((a,b)=>(b.tanggal+(b.jam||'')).localeCompare(a.tanggal+(a.jam||'')));
-  return filterUI()+`<input placeholder="Cari data…" value="${esc(flt.q)}" onchange="flt.q=this.value;render()" style="margin-bottom:10px">`+(rs.length?rs.map(r=>`<div class="it c"><div style="min-width:0"><h4>${esc(r.lokasi)} · Blok ${esc(r.blok)} · ${idShort(r.lokasi)} ${esc(r.idn)}</h4><p>${fd(r.tanggal)} · Save ${esc(r.jam||'-')}${r.jamEdit?` · <span class="ed">Edit ${r.tglEdit&&r.tglEdit!==r.tanggal?fd(r.tglEdit)+' ':''}${esc(r.jamEdit)}</span>`:''} · ${esc(r.waktu)} · ${esc(r.verifikator)}</p></div>
-  <div class="acts">${delId===r.id?`<button class="d" onclick="del('${r.id}')">Hapus permanen</button><button onclick="delId=null;render(true)">Batal</button>`:`<button onclick="edit('${r.id}')">Edit</button><button class="d" onclick="delId='${r.id}';render(true)">Hapus</button>`}</div></div>`).join(''):'<div class="card sub">Belum ada data.</div>')}
+function vData(){const q=df.q.toLowerCase(),rs=dr().filter(r=>!q||JSON.stringify(r).toLowerCase().includes(q)).sort((a,b)=>(b.tanggal+(b.jam||'')).localeCompare(a.tanggal+(a.jam||'')));
+  return dataFilter()+`<div class="sub" style="margin:0 4px 8px">${rs.length} data${rs.length!==rows.length?' dari '+rows.length:''}</div>`+(rs.length?rs.map(r=>`<div class="it c"><div style="min-width:0"><h4>${esc(r.lokasi)} · Blok ${esc(r.blok)} · ${idShort(r.lokasi)} ${esc(r.idn)}</h4><p>${fd(r.tanggal)} · Save ${esc(r.jam||'-')}${r.jamEdit?` · <span class="ed">Edit ${r.tglEdit&&r.tglEdit!==r.tanggal?fd(r.tglEdit)+' ':''}${esc(r.jamEdit)}</span>`:''} · ${esc(r.waktu)} · ${esc(r.verifikator)}${r.periode?' · '+esc(r.periode):''}</p></div>
+  ${canEdit(r)?`<div class="acts">${delId===r.id?`<button class="d" onclick="del('${r.id}')">Hapus permanen</button><button onclick="delId=null;render(true)">Batal</button>`:`<button onclick="edit('${r.id}')">Edit</button><button class="d" onclick="delId='${r.id}';render(true)">Hapus</button>`}</div>`:'<div class="lockt">Terkunci<br>perangkat lain</div>'}</div>`).join(''):'<div class="card sub">Tidak ada data yang cocok.</div>')}
 /* ---------- unduh & bagikan ---------- */
 function reportText(){const rs=fr();return `*LAPORAN VERIFIKASI PROSES PRODUKSI*\n${flt.from||flt.to?fd(flt.from)+' s/d '+fd(flt.to):'Semua periode'} · ${flt.lokasi||'Semua lokasi'}\n\n`+insights(rs).map(x=>'• '+x).join('\n')+'\n\n_Dikirim dari aplikasi Verifikasi Proses Produksi_'}
 async function saveBlob(name,data){const b=data instanceof Blob?data:new Blob([data]);const u=await new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});const a=document.createElement('a');a.href=u;a.download=name;a.style.display='none';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),500)}
