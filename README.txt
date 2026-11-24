@@ -10,3 +10,7 @@ CARA PASANG
 UPDATE v17: tambah pilihan "Laporan" (Verifikasi Proses, OS & IPQC, Premium). Upload ulang seluruh isi folder ke Netlify, lalu tutup dan buka lagi aplikasi di HP agar versi baru terpasang.
 
 UPDATE v18: tabel lebih ringkas, OS & IPQC 5 kolom Visual, Premium 1 kolom Qty Reject, unduh Excel 3 sheet, dashboard per laporan + Perbandingan, judul baru.
+
+UPDATE v19: dashboard Perbandingan dihapus; OS (berat, Avg, Std Dev) dan IPQC (visual) dipisah; Premium 3 defect terbanyak per lokasi.
+
+UPDATE v20: UH/UB di OS & IPQC, Premium 60 baris, laporan Durasi Ambri/Sap (input, dashboard, Excel 4 sheet), dashboard IPQC (UH, UB, Visual), pilihan jumlah NBK/ID di Premium, penyimpanan lebih ringan.
