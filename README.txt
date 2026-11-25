@@ -14,3 +14,5 @@ UPDATE v18: tabel lebih ringkas, OS & IPQC 5 kolom Visual, Premium 1 kolom Qty R
 UPDATE v19: dashboard Perbandingan dihapus; OS (berat, Avg, Std Dev) dan IPQC (visual) dipisah; Premium 3 defect terbanyak per lokasi.
 
 UPDATE v20: UH/UB di OS & IPQC, Premium 60 baris, laporan Durasi Ambri/Sap (input, dashboard, Excel 4 sheet), dashboard IPQC (UH, UB, Visual), pilihan jumlah NBK/ID di Premium, penyimpanan lebih ringan.
+
+UPDATE v21: dashboard OS (standar berat, % Lower/Standar/Upper), IPQC (UH/UB kategori, Sd UH/Sd UB, pemisah Diameter dan Visual), Premium 3 defect per Lokasi/ID, Durasi 'ID', tab dan filter tanggal lebih ringkas.
