@@ -159,8 +159,7 @@ async function init(){
 try{firebase.initializeApp(FB);const db=firebase.firestore();try{db.settings({cacheSizeBytes:8*1048576})}catch(e){}
 try{await db.enablePersistence({synchronizeTabs:true})}catch(e){}
 col=db.collection('verifikasi');
-col.onSnapshot({includeMetadataChanges:true},sn=>{rows=sn.docs.map(d=>({id:d.id,...d.data()}));cache();
-status(!sn.metadata.fromCache,sn.metadata.fromCache?'Offline · tersimpan di HP':(sn.metadata.hasPendingWrites?'Menyinkron…':'Online'));if(tab!=='input')render()},e=>status(false,'offline'))
+listen()
 }catch(e){status(false,'mode lokal')}
 }
 const nm3=v=>{const d=String(v||'').replace(/\D/g,'').slice(0,3);return d?d[0]+','+(d.slice(1)+'00').slice(0,2):''},nmT=v=>{const d=String(v||'').replace(/\D/g,'').slice(0,4);if(!d)return '';return(d.length<=2?d.padStart(2,'0'):d.length===3?'0'+d[0]:d.slice(0,2))+':'+(d.length<=2?'00':d.slice(-2))},okT=v=>/^([01]\d|2[0-3]):[0-5]\d$/.test(v);
@@ -263,8 +262,12 @@ if(w==='End Proses')h+=`<div class="card"><div class="lb">Note temuan</div><text
 return h+sbtn()}
 const sev=p=>p<=5?'ok':p<=15?'warn':'bad';
 const ago=n=>{const d=new Date();d.setDate(d.getDate()-n);return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
-function setR(n){if(n===0){flt.from='';flt.to=''}else{flt.to=today();flt.from=ago(n-1)}render(true)}
+function setR(n){if(n===0){if(col&&loadFrom!==''){if(!confirm('Memuat SEMUA data akan membaca seluruh database dan memakai kuota baca harian. Lanjutkan?'))return;loadFrom='';listen();toast('Memuat semua data…',2500)}flt.from='';flt.to=''}else{flt.to=today();flt.from=ago(n-1)}render(true)}
 const rOn=n=>n===0?(!flt.from&&!flt.to):(flt.to===today()&&flt.from===ago(n-1));
+let loadFrom=ago(30),unsub=null;flt.from=ago(29);flt.to=today();
+function listen(){if(!col)return;if(unsub)unsub();unsub=(loadFrom?col.where('tanggal','>=',loadFrom):col).onSnapshot({includeMetadataChanges:true},sn=>{rows=sn.docs.map(d=>({id:d.id,...d.data()}));cache();
+status(!sn.metadata.fromCache,sn.metadata.fromCache?'Offline · tersimpan di HP':(sn.metadata.hasPendingWrites?'Menyinkron…':'Online'));if(tab!=='input')render()},e=>status(false,'offline'))}
+function need(f){if(!col||!loadFrom||!f||f>=loadFrom)return;loadFrom=f;listen();toast('Memuat data lama…',2500)}
 function bars(a){const mx=Math.max(...a.map(x=>x.pct),1);return a.length?a.map(x=>`<div class="bar"><div class="t"><span>${esc(x.k)}</span><em>${x.n} Data · ${x.t} Temuan/${x.p} Sampel · ${x.pct.toFixed(2)}%</em></div><div class="tr"><div class="f ${sev(x.pct)}" style="width:${Math.max(x.pct/mx*100,2)}%"></div></div></div>`).join(''):'<div class="sub">Tidak ada data</div>'}
 function trend(rs,key){let a=by(rs,r=>r.tanggal).sort((x,y)=>x.k<y.k?-1:1);if(key==='pr')a=a.filter(x=>x.smp>0);a=a.slice(-14);if(a.length<2)return '<div class="sub">Butuh minimal 2 hari data untuk tren.</div>';
 const d=key==='pr'?1:0,mx=Math.max(key==='pr'?1:10,...a.map(x=>x[key])),pt=a.map((x,i)=>[16+i*(288/(a.length-1)),100-x[key]/mx*84]);
@@ -426,12 +429,13 @@ tb=r=>`<div class="scroll" style="max-height:60vh;overflow:auto"><table class="d
 const body=pmDm==='Lokasi'?tb(top3(x=>x.r.lokasi,99)):pmDm==='ID'?`<div class="sub" style="margin-bottom:6px">Jumlah ID mengikuti pilihan "Tampilkan NBK/ID" di atas.</div>${tb(top3(x=>x.id,pmTop||99999))}`:dmx(a.map(x=>({d:x.d,l:x.r.lokasi,w:x.q})),3);
 return `<div class="card"><div class="lb">3 Defect terbanyak (qty reject)</div><div class="chip-row chips">${['Keseluruhan','Lokasi','ID'].map(v=>`<button class="chip ${pmDm===v?'on':''}" onclick="pmDm='${v}';render(true)">${v}</button>`).join('')}</div><div style="margin-top:8px">${body}</div></div>`}
 function dashFilter(){return `<div class="card dcf"><div class="lb">Periode data</div><div class="g4">${[[1,'Hari ini'],[7,'7 hari'],[30,'30 hari'],[0,'Semua']].map(([n,l])=>`<button class="chip ${rOn(n)?'on':''}" onclick="setR(${n})">${l}</button>`).join('')}</div>
-<div class="row2" style="margin-top:10px"><input type="date" value="${flt.from}" onchange="flt.from=this.value;render(true)"><input type="date" value="${flt.to}" onchange="flt.to=this.value;render(true)"></div>
-<div class="lb">Lokasi</div><div class="g5">${['',...OPT.lokasi].map(l=>`<button class="chip ${flt.lokasi===l?'on':''}" onclick="flt.lokasi='${l}';render(true)">${l||'Semua'}</button>`).join('')}</div></div>`}
+<div class="row2" style="margin-top:10px"><input type="date" value="${flt.from}" onchange="flt.from=this.value;need(flt.from);render(true)"><input type="date" value="${flt.to}" onchange="flt.to=this.value;render(true)"></div>
+<div class="lb">Lokasi</div><div class="g5">${['',...OPT.lokasi].map(l=>`<button class="chip ${flt.lokasi===l?'on':''}" onclick="flt.lokasi='${l}';render(true)">${l||'Semua'}</button>`).join('')}</div><div class="sub" style="margin-top:5px;font-size:10.5px">Data dimuat: ${loadFrom?'sejak '+fd(loadFrom):'semua'}</div></div>`}
 const dr=()=>rows.filter(r=>(!df.from||r.tanggal>=df.from)&&(!df.to||r.tanggal<=df.to)&&(!df.lokasi||r.lokasi===df.lokasi)&&(!df.ver||r.verifikator===df.ver)&&(!df.batch||r.periode===df.batch)&&(!df.lap||lapOf(r)===df.lap));
 function dataFilter(){const o=(arr,k,all)=>`<select onchange="df.${k}=this.value;render(true)"><option value="">${all}</option>${arr.map(v=>`<option ${df[k]===v?'selected':''}>${v}</option>`).join('')}</select>`;
-return `<div class="card"><div class="row2"><div><div class="lb" style="margin:0 0 4px">Dari</div><input type="date" value="${df.from}" onchange="df.from=this.value;render(true)"></div><div><div class="lb" style="margin:0 0 4px">Sampai</div><input type="date" value="${df.to}" onchange="df.to=this.value;render(true)"></div></div>
-<div class="g3 sel" style="margin-top:10px">${o(OPT.lokasi,'lokasi','Lokasi')}${o(OPT.ver,'ver','Verifikator')}${o(OPT.periode,'batch','Batch')}</div>
+return `<div class="card"><div class="row2"><div><div class="lb" style="margin:0 0 4px">Dari</div><input type="date" value="${df.from}" onchange="df.from=this.value;need(df.from);render(true)"></div><div><div class="lb" style="margin:0 0 4px">Sampai</div><input type="date" value="${df.to}" onchange="df.to=this.value;render(true)"></div></div>
+<div class="sub" style="margin-top:6px;font-size:10.5px">Data dimuat: ${loadFrom?'sejak '+fd(loadFrom)+' · pilih tanggal "Dari" lebih lama untuk memuat data lama':'semua'}</div>
+<div class="g3 sel" style="margin-top:8px">${o(OPT.lokasi,'lokasi','Lokasi')}${o(OPT.ver,'ver','Verifikator')}${o(OPT.periode,'batch','Batch')}</div>
 <div class="sel" style="margin-top:8px"><select onchange="df.lap=this.value;render(true)"><option value="">Semua Laporan</option>${LAP.map(v=>`<option value="${esc(v)}" ${df.lap===v?'selected':''}>${esc(v)}</option>`).join('')}</select></div>
 <div class="srow"><input placeholder="Cari data…" value="${esc(df.q)}" onchange="df.q=this.value;render(true)"><button class="mini-b" onclick="df={from:'',to:'',lokasi:'',ver:'',batch:'',lap:'',q:''};render(true)">Reset</button></div></div>`}
 function vDashVP(){const rs=fr().filter(isVP),T=tally(rs),g=by(rs,GR[grp][1]);
