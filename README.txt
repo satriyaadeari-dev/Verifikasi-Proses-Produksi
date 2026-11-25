@@ -20,3 +20,5 @@ UPDATE v21: dashboard OS (standar berat, % Lower/Standar/Upper), IPQC (UH/UB kat
 UPDATE v23: IPQC: Visual di atas, Diameter di bawah; tabel % UH/UB 1 desimal tanpa geser; Visual dihitung per rokok defect/tanpa defect.
 
 UPDATE v24: data dimuat 31 hari terakhir (hemat baca Firebase); periode lebih lama dimuat saat dipilih; 'Semua' meminta konfirmasi. Indeks field tanggal harus tetap aktif.
+
+UPDATE v25: hemat baca (tanpa listener realtime, data dimuat sesuai periode, batas baca per perangkat), mode admin (ketuk judul 5x), Premium: Baris diganti MPP.

@@ -112,7 +112,7 @@ main.cmp{padding:4px 10px}.cmp .card{padding:10px;margin-bottom:8px;border-radiu
 .sec{margin:14px 2px 8px;font-weight:800;font-size:11.5px;letter-spacing:.6px;text-transform:uppercase;display:flex;align-items:center;gap:8px}.sec:before{content:"";width:4px;height:16px;border-radius:2px;background:var(--c)}.sd .card{border-left:4px solid var(--c)}
 .dtb.p6{table-layout:fixed;width:100%;font-size:10px}.dtb.p6 th{font-size:8.5px;padding:4px 0}.dtb.p6 td{padding:5px 0;min-width:0;white-space:nowrap}.dtb.p6 td:first-child,.dtb.p6 th:first-child{width:25%;min-width:0;white-space:normal;word-break:break-word;font-size:10px;text-align:left}
 </style></head><body>
-<header><div><h1>Verifikasi <span>Proses &amp; Output Produksi</span></h1><div class="sub">Pencatatan &amp; analitik temuan</div></div><div class="hr"><div class="dt" id="dt"></div><div class="clk" id="clk">--:--:--</div><div class="st off" id="st"><b>●</b> menghubungkan</div></div></header>
+<header><div><h1 onclick="tt()">Verifikasi <span>Proses &amp; Output Produksi</span></h1><div class="sub">Pencatatan &amp; analitik temuan</div></div><div class="hr"><div class="dt" id="dt"></div><div class="clk" id="clk">--:--:--</div><div class="st off" id="st"><b>●</b> menghubungkan</div></div></header>
 <main id="app"></main>
 <nav><div><button data-t="input" onclick="go('input')"><i>✎</i>Input</button><button data-t="dash" onclick="go('dash')"><i>◔</i>Dashboard</button><button data-t="data" onclick="go('data')"><i>☰</i>Data</button></div></nav>
 <div id="toast"></div>
@@ -124,7 +124,8 @@ const AUTO={'MGT':['12 AS',4],'BTR':['12 DJAJA',2],'AREA 2':['12 AS',8],'AREA 4'
 const PIN=['Implementasi 10btg/15 menit','Cek setting gilingan','Cek Wiwiran/Glue Tank','Penempatan Ambri','Kebersihan Tools','Pemerataan Tbk (UH s/d UB)','Cek Area Talipan','Cek Area UH UB'];
 const isNbk=l=>l==='AREA 2'||l==='AREA 4',idMax=l=>isNbk(l)?2:4,idShort=l=>isNbk(l)?'NBK':'ID';
 const devId=(()=>{try{let d=localStorage.getItem('vp_devid');if(!d){d='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);localStorage.setItem('vp_devid',d)}return d}catch(e){return 'd-lokal'}})();
-const canEdit=r=>!r.owner||r.owner===devId,DENY='Data ini hanya bisa diedit atau dihapus oleh perangkat yang menginputnya';
+let adm=false;try{adm=localStorage.getItem('vp_adm')==='1'}catch(e){}
+const canEdit=r=>adm||!r.owner||r.owner===devId,DENY='Data ini hanya bisa diedit atau dihapus oleh perangkat yang menginputnya';
 const TMB=['Verifikasi Timbangan','Verifikasi APD'];
 const LAP=['Verifikasi Proses','OS & IPQC','Premium','Durasi Ambri/Sap'],HARI=['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'],DEF=['TS','PAK','KL','BTS','ATSP','ATSL','AT','UTR','Ambri Sobek','Lubang','Kotor','Bercak Minyak','Berkerut','Benda Asing','Gagang','IKM','Keropos'];
 const lapOf=r=>r.laporan||'Verifikasi Proses',isVP=r=>lapOf(r)==='Verifikasi Proses',nB=s=>parseFloat(String(s||'0').replace(',','.'))||0,fB=n=>n.toFixed(2).replace('.',',');
@@ -137,12 +138,12 @@ const durBlank=()=>Array.from({length:15},()=>['','','']),osBlank=()=>Array.from
 const blank=()=>({laporan:'',lokasi:'',tanggal:today(),waktu:'',verifikator:'',brand:'',periode:'',blok:'',idn:'',sampel:'',reject:'',note:'',poin:{},os:osBlank(),prem:premBlank(),hari:'',ids:['','',''],dur:durBlank()});
 let rows=[],tab='input',F=blank(),editId=null,delId=null,grp='lokasi',rgrp='lokasi',df={from:'',to:'',lokasi:'',ver:'',batch:'',lap:'',q:''},nflt='',flt={from:'',to:'',lokasi:'',q:''},col=null;
 try{rows=JSON.parse(localStorage.getItem('vp_cache')||'[]')}catch(e){}
-let ct;const cache=()=>{const w=()=>{try{localStorage.setItem('vp_cache',JSON.stringify(rows))}catch(e){}};clearTimeout(ct);if(col)ct=setTimeout(w,1500);else w()};
+let ct;const cache=()=>{const w=()=>{try{localStorage.setItem('vp_cache',JSON.stringify(col?rows.filter(r=>r.owner===devId&&r.tanggal>=ago(6)):rows))}catch(e){}};clearTimeout(ct);if(col)ct=setTimeout(w,1500);else w()};
 function toast(m,ms){const t=document.getElementById('toast');t.innerHTML='<div class="toast">'+esc(m)+'</div>';clearTimeout(toast.i);toast.i=setTimeout(()=>t.innerHTML='',ms||2800)}
 let stOk=false,stTxt='Menghubungkan';
-function paintSt(){const s=document.getElementById('st');if(!s)return;s.className='st'+(stOk?'':' off');s.innerHTML='<b>●</b> '+stTxt+' ('+rows.length+' Data)'}
+function paintSt(){const s=document.getElementById('st');if(!s)return;s.className='st'+(stOk?'':' off');s.innerHTML='<b>●</b> '+stTxt+' ('+rows.length+' Data)'+(adm?' · Admin':'')}
 function status(ok,txt){stOk=ok;stTxt=txt;paintSt()}
-function go(t){tab=t;window.scrollTo(0,0);render()}
+function go(t){tab=t;window.scrollTo(0,0);render();autoLoad()}
 function cfg(){const w=F.waktu,v=F.verifikator;
 if(F.laporan==='OS & IPQC')return{ver:['PPRK','KAUR'],per:1,rok:0,pts:[],pb:['Batch 1','Batch 2']};
 if(F.laporan!=='Verifikasi Proses')return{ver:[],per:0,rok:0,pts:[]};
@@ -159,7 +160,7 @@ async function init(){
 try{firebase.initializeApp(FB);const db=firebase.firestore();try{db.settings({cacheSizeBytes:8*1048576})}catch(e){}
 try{await db.enablePersistence({synchronizeTabs:true})}catch(e){}
 col=db.collection('verifikasi');
-listen()
+status(navigator.onLine!==false,navigator.onLine!==false?'Online':'Offline');addEventListener('online',()=>status(true,'Online'));addEventListener('offline',()=>status(false,'Offline'))
 }catch(e){status(false,'mode lokal')}
 }
 const nm3=v=>{const d=String(v||'').replace(/\D/g,'').slice(0,3);return d?d[0]+','+(d.slice(1)+'00').slice(0,2):''},nmT=v=>{const d=String(v||'').replace(/\D/g,'').slice(0,4);if(!d)return '';return(d.length<=2?d.padStart(2,'0'):d.length===3?'0'+d[0]:d.slice(0,2))+':'+(d.length<=2?'00':d.slice(-2))},okT=v=>/^([01]\d|2[0-3]):[0-5]\d$/.test(v);
@@ -262,12 +263,31 @@ if(w==='End Proses')h+=`<div class="card"><div class="lb">Note temuan</div><text
 return h+sbtn()}
 const sev=p=>p<=5?'ok':p<=15?'warn':'bad';
 const ago=n=>{const d=new Date();d.setDate(d.getDate()-n);return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
-function setR(n){if(n===0){if(col&&loadFrom!==''){if(!confirm('Memuat SEMUA data akan membaca seluruh database dan memakai kuota baca harian. Lanjutkan?'))return;loadFrom='';listen();toast('Memuat semua data…',2500)}flt.from='';flt.to=''}else{flt.to=today();flt.from=ago(n-1)}render(true)}
+function setR(n){if(n===0){flt.from='';flt.to=''}else{flt.to=today();flt.from=ago(n-1)}render(true);autoLoad()}
 const rOn=n=>n===0?(!flt.from&&!flt.to):(flt.to===today()&&flt.from===ago(n-1));
-let loadFrom=ago(30),unsub=null;flt.from=ago(29);flt.to=today();
-function listen(){if(!col)return;if(unsub)unsub();unsub=(loadFrom?col.where('tanggal','>=',loadFrom):col).onSnapshot({includeMetadataChanges:true},sn=>{rows=sn.docs.map(d=>({id:d.id,...d.data()}));cache();
-status(!sn.metadata.fromCache,sn.metadata.fromCache?'Offline · tersimpan di HP':(sn.metadata.hasPendingWrites?'Menyinkron…':'Online'));if(tab!=='input')render()},e=>status(false,'offline'))}
-function need(f){if(!col||!loadFrom||!f||f>=loadFrom)return;loadFrom=f;listen();toast('Memuat data lama…',2500)}
+flt.from=today();flt.to=today();df.from=today();df.to=today();
+const ADMH='644b06ce10f1f869bdbbaa321519986e9ae63b04bd7ade6e349d085d3149aaa4',BUD_ADMIN=6000,BUD_USER=800,TTL=600000,got={};let loading=false,trunc=false;
+const budget=()=>adm?BUD_ADMIN:BUD_USER,rd=()=>{try{const o=JSON.parse(localStorage.getItem('vp_reads')||'{}');return o.d===today()?o.n:0}catch(e){return 0}},addRd=n=>{try{localStorage.setItem('vp_reads',JSON.stringify({d:today(),n:rd()+n}))}catch(e){}},kk=(f,t)=>(f||'')+'|'+(t||'');
+async function loadRng(from,to,force){if(!col||loading)return;const key=kk(from,to);if(!force&&got[key]&&Date.now()-got[key]<TTL)return;
+  if(!from&&!to&&!confirm('Memuat SEMUA data akan membaca banyak dokumen dan memakai kuota baca harian. Lanjutkan?'))return;
+  const rem=budget()-rd();if(rem<=0){toast('Batas baca harian perangkat ('+budget()+') sudah tercapai. Data milik perangkat ini tetap bisa dipakai.',4500);return}
+  loading=true;toast('Memuat data…',1500);
+  try{let q=col;if(from)q=q.where('tanggal','>=',from);if(to)q=q.where('tanggal','<=',to);
+    const sn=await q.limit(rem).get();if(!sn.metadata.fromCache)addRd(Math.max(1,sn.size));
+    const ids=new Set(sn.docs.map(d=>d.id)),m=new Map(rows.map(r=>[r.id,r]));sn.docs.forEach(d=>m.set(d.id,{id:d.id,...d.data()}));
+    const cut=sn.size>=rem;rows=[...m.values()].filter(r=>cut||r.owner===devId||ids.has(r.id)||!(r.tanggal>=(from||'')&&r.tanggal<=(to||'9999-99-99')));
+    got[key]=Date.now();trunc=cut;cache();if(cut)toast('Data dipotong oleh batas baca harian perangkat',4500)
+  }catch(e){toast('Gagal memuat: '+(e.code||e.message),3500)}
+  loading=false;render(true)}
+const ld=(w,f)=>w==='dash'?loadRng(flt.from,flt.to,f):loadRng(df.from,df.to,f);
+function autoLoad(){if(!adm||!col)return;const a=tab==='dash'?flt:tab==='data'?df:null;if(a&&(a.from||a.to))loadRng(a.from,a.to)}
+const ldNote=(a)=>{const t=got[kk(a.from,a.to)],p=a.from&&a.from===a.to&&a.from===today()?'Hari ini':(a.from?fd(a.from):'awal')+' s/d '+(a.to?fd(a.to):'akhir');return `<div class="sub" style="margin-top:5px;font-size:10.5px">${p} · ${t?'data semua pengguna dimuat '+new Date(t).toTimeString().slice(0,5):'hanya data perangkat ini'} · baca ${rd()}/${budget()}${trunc?' · DIPOTONG batas baca':''}</div>${col?`<button class="btn g" style="margin-top:6px;padding:7px;font-size:12px" onclick="ld('${a===flt?'dash':'data'}',1)">${adm?'Perbarui data':'Muat data semua pengguna'}</button>`:''}`};
+async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+let tapN=0,tapT=0;
+async function tt(){const n=Date.now();tapN=n-tapT<1500?tapN+1:1;tapT=n;if(tapN<5)return;tapN=0;
+  if(adm){if(confirm('Matikan mode admin di perangkat ini?')){adm=false;try{localStorage.removeItem('vp_adm')}catch(e){}toast('Mode admin dimatikan');paintSt();render(true)}return}
+  const c=prompt('Kode admin');if(!c)return;let ok=false;try{ok=await sha(c.trim().toUpperCase())===ADMH}catch(e){}
+  if(ok){adm=true;try{localStorage.setItem('vp_adm','1')}catch(e){}toast('Mode admin aktif · bisa edit dan hapus semua data',3500);paintSt();render(true)}else toast('Kode salah')}
 function bars(a){const mx=Math.max(...a.map(x=>x.pct),1);return a.length?a.map(x=>`<div class="bar"><div class="t"><span>${esc(x.k)}</span><em>${x.n} Data · ${x.t} Temuan/${x.p} Sampel · ${x.pct.toFixed(2)}%</em></div><div class="tr"><div class="f ${sev(x.pct)}" style="width:${Math.max(x.pct/mx*100,2)}%"></div></div></div>`).join(''):'<div class="sub">Tidak ada data</div>'}
 function trend(rs,key){let a=by(rs,r=>r.tanggal).sort((x,y)=>x.k<y.k?-1:1);if(key==='pr')a=a.filter(x=>x.smp>0);a=a.slice(-14);if(a.length<2)return '<div class="sub">Butuh minimal 2 hari data untuk tren.</div>';
 const d=key==='pr'?1:0,mx=Math.max(key==='pr'?1:10,...a.map(x=>x[key])),pt=a.map((x,i)=>[16+i*(288/(a.length-1)),100-x[key]/mx*84]);
@@ -392,14 +412,14 @@ return dashFilter()+`<div class="sec" style="--c:#8b5cf6">Visual</div><div class
 `+insH(I)+shareCard()}
 function vDashPM(){const a=pmList(fr());if(!a.length)return dashFilter()+'<div class="card sub">Belum ada laporan Premium pada filter ini.</div>'+shareCard();
 const n=a.length,S=a.reduce((s,x)=>s+x.s,0),Q=a.reduce((s,x)=>s+x.q,0),pr=S?Q/S*100:0,nd=new Set(a.map(x=>x.r.id)).size;
-const pt=(t,f,top)=>`<div class="lb">${t}</div><div class="scroll" style="max-height:60vh;overflow:auto"><table class="dtb"><tr><th></th><th>Baris</th><th>Sampel</th><th>Reject</th><th>% Reject</th></tr>${gPM(a,f).sort((x,y)=>y.pr-x.pr).slice(0,top||99).map(o=>`<tr><td>${esc(o.k)}</td><td>${o.n}</td><td>${o.s}</td><td>${o.q}</td><td class="${sev(o.pr)}">${o.pr.toFixed(1)}%</td></tr>`).join('')}</table></div>`;
+const pt=(t,f,top)=>`<div class="lb">${t}</div><div class="scroll" style="max-height:60vh;overflow:auto"><table class="dtb"><tr><th></th><th>MPP</th><th>Sampel</th><th>Reject</th><th>% Reject</th></tr>${gPM(a,f).sort((x,y)=>y.pr-x.pr).slice(0,top||99).map(o=>`<tr><td>${esc(o.k)}</td><td>${o.n}</td><td>${o.s}</td><td>${o.q}</td><td class="${sev(o.pr)}">${o.pr.toFixed(1)}%</td></tr>`).join('')}</table></div>`;
 const dm={};a.forEach(x=>x.d.forEach(d=>dm[d]=(dm[d]||0)+x.q));const dr2=Object.entries(dm).sort((x,y)=>y[1]-x[1]),gl=gPM(a,x=>x.r.lokasi).sort((x,y)=>y.pr-x.pr),gi=gPM(a,x=>x.id).filter(o=>o.q>0).sort((x,y)=>y.pr-x.pr);
-const I=[`Total ${nd} laporan, ${n} baris NBK/ID, ${S} sampel. Qty Reject ${Q} (${pr.toFixed(2)}%). Status: ${stat(pr)}`];
+const I=[`Total ${nd} laporan, ${n} MPP (NBK/ID), ${S} sampel. Qty Reject ${Q} (${pr.toFixed(2)}%). Status: ${stat(pr)}`];
 if(gl[0]&&gl[0].q)I.push(`Lokasi reject tertinggi: ${gl[0].k} (${gl[0].pr.toFixed(2)}%, ${gl[0].q}/${gl[0].s}).`);
 if(gi[0])I.push(`NBK/ID reject tertinggi: ${gi[0].k} (${gi[0].pr.toFixed(1)}%, ${gi[0].q}/${gi[0].s}).`);
 if(dr2[0])I.push(`Defect dominan: ${dr2[0][0]} (menyertai ${dr2[0][1]} qty reject, ${Q?(dr2[0][1]/Q*100).toFixed(0):0}% dari total). Prioritaskan perbaikan di sini.`);
-const cnt=a.filter(x=>x.q>0).length;I.push(`${cnt} dari ${n} baris NBK/ID memiliki reject (${(cnt/n*100).toFixed(0)}%).`);
-return dashFilter()+`<div class="card"><div class="lb">Premium · Reject</div>${hero(Q,S,'Reject','Sesuai')}${mi([['Jumlah Laporan',nd],['Baris NBK/ID',n],['Total Sampel',S],['Qty Reject',Q]])}</div>
+const cnt=a.filter(x=>x.q>0).length;I.push(`${cnt} dari ${n} MPP memiliki reject (${(cnt/n*100).toFixed(0)}%).`);
+return dashFilter()+`<div class="card"><div class="lb">Premium · Reject</div>${hero(Q,S,'Reject','Sesuai')}${mi([['Jumlah Laporan',nd],['MPP',n],['Total Sampel',S],['Qty Reject',Q]])}</div>
 <div class="card">${pt('Per Lokasi',x=>x.r.lokasi)}${pt('Per Blok',x=>x.r.lokasi+' – Blok '+x.r.blok)}${idCtl()}${pt('NBK/ID reject tertinggi'+(pmTop?' (maks '+pmTop+')':' (semua)'),x=>x.id,pmTop||99999)}</div>
 ${pmDmCard(a)}
 <div class="card"><div class="lb">Tren % reject harian</div>${lt(daily(a,v=>{const s=v.reduce((t,x)=>t+x.s,0);return s?v.reduce((t,x)=>t+x.q,0)/s*100:0}),2,1)}</div>`+insH(I)+shareCard()}
@@ -428,16 +448,16 @@ function pmDmCard(a){const top3=(f,l)=>{const m={};a.forEach(x=>{const k=f(x),o=
 tb=r=>`<div class="scroll" style="max-height:60vh;overflow:auto"><table class="dtb cp"><tr><th></th><th>Reject</th><th>#1</th><th>#2</th><th>#3</th></tr>${r.map(o=>`<tr><td>${esc(o.k)}</td><td>${o.q}</td>${[0,1,2].map(i=>`<td>${o.t[i]?esc(o.t[i][0])+' <small>('+o.t[i][1]+')</small>':'–'}</td>`).join('')}</tr>`).join('')}</table></div>`;
 const body=pmDm==='Lokasi'?tb(top3(x=>x.r.lokasi,99)):pmDm==='ID'?`<div class="sub" style="margin-bottom:6px">Jumlah ID mengikuti pilihan "Tampilkan NBK/ID" di atas.</div>${tb(top3(x=>x.id,pmTop||99999))}`:dmx(a.map(x=>({d:x.d,l:x.r.lokasi,w:x.q})),3);
 return `<div class="card"><div class="lb">3 Defect terbanyak (qty reject)</div><div class="chip-row chips">${['Keseluruhan','Lokasi','ID'].map(v=>`<button class="chip ${pmDm===v?'on':''}" onclick="pmDm='${v}';render(true)">${v}</button>`).join('')}</div><div style="margin-top:8px">${body}</div></div>`}
-function dashFilter(){return `<div class="card dcf"><div class="lb">Periode data</div><div class="g4">${[[1,'Hari ini'],[7,'7 hari'],[30,'30 hari'],[0,'Semua']].map(([n,l])=>`<button class="chip ${rOn(n)?'on':''}" onclick="setR(${n})">${l}</button>`).join('')}</div>
-<div class="row2" style="margin-top:10px"><input type="date" value="${flt.from}" onchange="flt.from=this.value;need(flt.from);render(true)"><input type="date" value="${flt.to}" onchange="flt.to=this.value;render(true)"></div>
-<div class="lb">Lokasi</div><div class="g5">${['',...OPT.lokasi].map(l=>`<button class="chip ${flt.lokasi===l?'on':''}" onclick="flt.lokasi='${l}';render(true)">${l||'Semua'}</button>`).join('')}</div><div class="sub" style="margin-top:5px;font-size:10.5px">Data dimuat: ${loadFrom?'sejak '+fd(loadFrom):'semua'}</div></div>`}
+function dashFilter(){return `<div class="card dcf"><div class="lb">Periode data</div><div class="row2">${[[1,'Hari ini'],[0,'Semua']].map(([n,l])=>`<button class="chip ${rOn(n)?'on':''}" onclick="setR(${n})">${l}</button>`).join('')}</div>
+<div class="row2" style="margin-top:10px"><input type="date" value="${flt.from}" onchange="flt.from=this.value;render(true);autoLoad()"><input type="date" value="${flt.to}" onchange="flt.to=this.value;render(true);autoLoad()"></div>
+<div class="lb">Lokasi</div><div class="g5">${['',...OPT.lokasi].map(l=>`<button class="chip ${flt.lokasi===l?'on':''}" onclick="flt.lokasi='${l}';render(true)">${l||'Semua'}</button>`).join('')}</div>${ldNote(flt)}</div>`}
 const dr=()=>rows.filter(r=>(!df.from||r.tanggal>=df.from)&&(!df.to||r.tanggal<=df.to)&&(!df.lokasi||r.lokasi===df.lokasi)&&(!df.ver||r.verifikator===df.ver)&&(!df.batch||r.periode===df.batch)&&(!df.lap||lapOf(r)===df.lap));
 function dataFilter(){const o=(arr,k,all)=>`<select onchange="df.${k}=this.value;render(true)"><option value="">${all}</option>${arr.map(v=>`<option ${df[k]===v?'selected':''}>${v}</option>`).join('')}</select>`;
-return `<div class="card"><div class="row2"><div><div class="lb" style="margin:0 0 4px">Dari</div><input type="date" value="${df.from}" onchange="df.from=this.value;need(df.from);render(true)"></div><div><div class="lb" style="margin:0 0 4px">Sampai</div><input type="date" value="${df.to}" onchange="df.to=this.value;render(true)"></div></div>
-<div class="sub" style="margin-top:6px;font-size:10.5px">Data dimuat: ${loadFrom?'sejak '+fd(loadFrom)+' · pilih tanggal "Dari" lebih lama untuk memuat data lama':'semua'}</div>
+return `<div class="card"><div class="row2"><div><div class="lb" style="margin:0 0 4px">Dari</div><input type="date" value="${df.from}" onchange="df.from=this.value;render(true);autoLoad()"></div><div><div class="lb" style="margin:0 0 4px">Sampai</div><input type="date" value="${df.to}" onchange="df.to=this.value;render(true);autoLoad()"></div></div>
+${ldNote(df)}
 <div class="g3 sel" style="margin-top:8px">${o(OPT.lokasi,'lokasi','Lokasi')}${o(OPT.ver,'ver','Verifikator')}${o(OPT.periode,'batch','Batch')}</div>
 <div class="sel" style="margin-top:8px"><select onchange="df.lap=this.value;render(true)"><option value="">Semua Laporan</option>${LAP.map(v=>`<option value="${esc(v)}" ${df.lap===v?'selected':''}>${esc(v)}</option>`).join('')}</select></div>
-<div class="srow"><input placeholder="Cari data…" value="${esc(df.q)}" onchange="df.q=this.value;render(true)"><button class="mini-b" onclick="df={from:'',to:'',lokasi:'',ver:'',batch:'',lap:'',q:''};render(true)">Reset</button></div></div>`}
+<div class="srow"><input placeholder="Cari data…" value="${esc(df.q)}" onchange="df.q=this.value;render(true)"><button class="mini-b" onclick="df={from:today(),to:today(),lokasi:'',ver:'',batch:'',lap:'',q:''};render(true)">Reset</button></div></div>`}
 function vDashVP(){const rs=fr().filter(isVP),T=tally(rs),g=by(rs,GR[grp][1]);
 return dashFilter()+heroCard(rs,T)+`
 <div class="kpi"><div class="k"><small>Verifikasi</small><b>${T.n}</b>${verList(rs)}</div><div class="k"><small>Poin diperiksa</small><b>${T.p}</b>${waktuList(rs)}</div><div class="k"><small>Temuan (X)</small><b style="color:var(--bad)">${T.t}</b></div><div class="k"><small>Poin sesuai (√)</small><b style="color:var(--ok)">${T.p-T.t}</b></div></div>
