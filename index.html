@@ -264,7 +264,7 @@ const sev=p=>p<=5?'ok':p<=15?'warn':'bad';
 const ago=n=>{const d=new Date();d.setDate(d.getDate()-n);return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 function setR(n){if(n===0){if(col&&loadFrom!==''){if(!confirm('Memuat SEMUA data akan membaca seluruh database dan memakai kuota baca harian. Lanjutkan?'))return;loadFrom='';listen();toast('Memuat semua data…',2500)}flt.from='';flt.to=''}else{flt.to=today();flt.from=ago(n-1)}render(true)}
 const rOn=n=>n===0?(!flt.from&&!flt.to):(flt.to===today()&&flt.from===ago(n-1));
-let loadFrom=ago(30),unsub=null;flt.from=ago(29);flt.to=today();
+let loadFrom=ago(30),unsub=null;flt.from=today();flt.to=today();
 function listen(){if(!col)return;if(unsub)unsub();unsub=(loadFrom?col.where('tanggal','>=',loadFrom):col).onSnapshot({includeMetadataChanges:true},sn=>{rows=sn.docs.map(d=>({id:d.id,...d.data()}));cache();
 status(!sn.metadata.fromCache,sn.metadata.fromCache?'Offline · tersimpan di HP':(sn.metadata.hasPendingWrites?'Menyinkron…':'Online'));if(tab!=='input')render()},e=>status(false,'offline'))}
 function need(f){if(!col||!loadFrom||!f||f>=loadFrom)return;loadFrom=f;listen();toast('Memuat data lama…',2500)}
@@ -392,14 +392,14 @@ return dashFilter()+`<div class="sec" style="--c:#8b5cf6">Visual</div><div class
 `+insH(I)+shareCard()}
 function vDashPM(){const a=pmList(fr());if(!a.length)return dashFilter()+'<div class="card sub">Belum ada laporan Premium pada filter ini.</div>'+shareCard();
 const n=a.length,S=a.reduce((s,x)=>s+x.s,0),Q=a.reduce((s,x)=>s+x.q,0),pr=S?Q/S*100:0,nd=new Set(a.map(x=>x.r.id)).size;
-const pt=(t,f,top)=>`<div class="lb">${t}</div><div class="scroll" style="max-height:60vh;overflow:auto"><table class="dtb"><tr><th></th><th>Baris</th><th>Sampel</th><th>Reject</th><th>% Reject</th></tr>${gPM(a,f).sort((x,y)=>y.pr-x.pr).slice(0,top||99).map(o=>`<tr><td>${esc(o.k)}</td><td>${o.n}</td><td>${o.s}</td><td>${o.q}</td><td class="${sev(o.pr)}">${o.pr.toFixed(1)}%</td></tr>`).join('')}</table></div>`;
+const pt=(t,f,top)=>`<div class="lb">${t}</div><div class="scroll" style="max-height:60vh;overflow:auto"><table class="dtb"><tr><th></th><th>MPP</th><th>Sampel</th><th>Reject</th><th>% Reject</th></tr>${gPM(a,f).sort((x,y)=>y.pr-x.pr).slice(0,top||99).map(o=>`<tr><td>${esc(o.k)}</td><td>${o.n}</td><td>${o.s}</td><td>${o.q}</td><td class="${sev(o.pr)}">${o.pr.toFixed(1)}%</td></tr>`).join('')}</table></div>`;
 const dm={};a.forEach(x=>x.d.forEach(d=>dm[d]=(dm[d]||0)+x.q));const dr2=Object.entries(dm).sort((x,y)=>y[1]-x[1]),gl=gPM(a,x=>x.r.lokasi).sort((x,y)=>y.pr-x.pr),gi=gPM(a,x=>x.id).filter(o=>o.q>0).sort((x,y)=>y.pr-x.pr);
-const I=[`Total ${nd} laporan, ${n} baris NBK/ID, ${S} sampel. Qty Reject ${Q} (${pr.toFixed(2)}%). Status: ${stat(pr)}`];
+const I=[`Total ${nd} laporan, ${n} MPP (NBK/ID), ${S} sampel. Qty Reject ${Q} (${pr.toFixed(2)}%). Status: ${stat(pr)}`];
 if(gl[0]&&gl[0].q)I.push(`Lokasi reject tertinggi: ${gl[0].k} (${gl[0].pr.toFixed(2)}%, ${gl[0].q}/${gl[0].s}).`);
 if(gi[0])I.push(`NBK/ID reject tertinggi: ${gi[0].k} (${gi[0].pr.toFixed(1)}%, ${gi[0].q}/${gi[0].s}).`);
 if(dr2[0])I.push(`Defect dominan: ${dr2[0][0]} (menyertai ${dr2[0][1]} qty reject, ${Q?(dr2[0][1]/Q*100).toFixed(0):0}% dari total). Prioritaskan perbaikan di sini.`);
-const cnt=a.filter(x=>x.q>0).length;I.push(`${cnt} dari ${n} baris NBK/ID memiliki reject (${(cnt/n*100).toFixed(0)}%).`);
-return dashFilter()+`<div class="card"><div class="lb">Premium · Reject</div>${hero(Q,S,'Reject','Sesuai')}${mi([['Jumlah Laporan',nd],['Baris NBK/ID',n],['Total Sampel',S],['Qty Reject',Q]])}</div>
+const cnt=a.filter(x=>x.q>0).length;I.push(`${cnt} dari ${n} MPP memiliki reject (${(cnt/n*100).toFixed(0)}%).`);
+return dashFilter()+`<div class="card"><div class="lb">Premium · Reject</div>${hero(Q,S,'Reject','Sesuai')}${mi([['Jumlah Laporan',nd],['MPP',n],['Total Sampel',S],['Qty Reject',Q]])}</div>
 <div class="card">${pt('Per Lokasi',x=>x.r.lokasi)}${pt('Per Blok',x=>x.r.lokasi+' – Blok '+x.r.blok)}${idCtl()}${pt('NBK/ID reject tertinggi'+(pmTop?' (maks '+pmTop+')':' (semua)'),x=>x.id,pmTop||99999)}</div>
 ${pmDmCard(a)}
 <div class="card"><div class="lb">Tren % reject harian</div>${lt(daily(a,v=>{const s=v.reduce((t,x)=>t+x.s,0);return s?v.reduce((t,x)=>t+x.q,0)/s*100:0}),2,1)}</div>`+insH(I)+shareCard()}
